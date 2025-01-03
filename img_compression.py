@@ -20,31 +20,31 @@ def new_cluster_centers(image, cluster_centres, labels, number_of_colors):
     for i in range(rw):
         for j in range(cl):
             b1, g1, r1 = image[i, j]
-            mindistance = float('inf')
+            min_distance = float('inf')
             centroid_label = 0
             for t in range(number_of_colors):
                 val1, val2, val3 = cluster_centres[t].b, cluster_centres[t].g, cluster_centres[t].r
                 distance = euclidean_distance(val1, val2, val3, b1, g1, r1)
-                if distance < mindistance:
-                    mindistance = distance
+                if distance < min_distance:
+                    min_distance = distance
                     centroid_label = t
             labels[i, j] = centroid_label
 
 def find_centroids(image, labels, cluster_centres, number_of_colors):
     rw, cl, _ = image.shape
     for i in range(number_of_colors):
-        val1 = val2 = val3 = 0
-        it = 0
-        for j in range(rw):
-            for k in range(cl):
-                if labels[j, k] == i:
-                    b, g, r = image[j, k]
-                    val1 += b
-                    val2 += g
-                    val3 += r
-                    it += 1
+        mask = (labels == i)
+        if np.any(mask):  # Check if there are pixels assigned to the cluster
+            val1 = np.sum(image[:, :, 0][mask].astype(np.float32))
+            val2 = np.sum(image[:, :, 1][mask].astype(np.float32))
+            val3 = np.sum(image[:, :, 2][mask].astype(np.float32))
+            it = np.sum(mask)
+            avg_b = int(np.clip(val1 / it, 0, 255))
+            avg_g = int(np.clip(val2 / it, 0, 255))
+            avg_r = int(np.clip(val3 / it, 0, 255))
+            cluster_centres[i] = Pixel(avg_b, avg_g, avg_r)
         if it > 0:
-            cluster_centres[i] = Pixel(val1 // it, val2 // it, val3 // it)
+            print(f"Cluster {i}: val1={val1}, val2={val2}, val3={val3}, it={it}")
 
 def train_model(image, cluster_centres, labels, number_of_colors, steps):
     print("Image Compression Started")
@@ -55,19 +55,19 @@ def train_model(image, cluster_centres, labels, number_of_colors, steps):
         print(f"Working on Compression Step: {step + 1}")
 
 # Get user input
-input_image = input("Enter the input image address: ")
-number_of_colors = int(input("Enter the Number of colors you want to take in image: "))
+input_image = input("Enter the image address: ")
+number_of_colors = int(input("Enter the Number of colors: "))
 output_image = "compressed_image.png"
 
 # Validate steps input
 steps = 61
 while steps < 20 or steps == 61:
-    steps = int(input("Enter the number of steps you want to train the model: "))
+    steps = int(input("Enter the number of steps to train: "))
     if steps == 61:
         break
-    elif steps < 10:
-        print("Note: Steps Entered must be higher for better quality of image")
-        print("Re-enter the number of steps you want to train the model: ")
+    elif steps < 20:
+        print("Steps Entered must be higher than 10")
+        print("Please enter a valid number of steps")
 
 # Load image
 image = cv2.imread(input_image)
@@ -106,8 +106,6 @@ else:
 
     # Write the compressed image
     cv2.imwrite(output_image, image)
-
     # Display the compressed image
     cv2.imshow("Display Our Model Image", image)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+ 
